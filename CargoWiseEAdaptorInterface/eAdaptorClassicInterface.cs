@@ -10,9 +10,18 @@ using System.Xml.Linq;
 
 namespace CargoWiseEAdaptorInterface
 {
+	/// <summary>
+	/// Interface for eAdaptor Classic
+	/// </summary>
 	public class eAdaptorClassicInterface : IeAdaptorInterface
 	{
+		/// <summary>
+		/// The inbound URL for the CargoWise instance
+		/// </summary>
 		public string InboundURL { get; set; }
+		/// <summary>
+		/// Timeout for requests. Set this to a rather high value, default is 10 minutes.
+		/// </summary>
 		public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
 		private readonly string _username;
@@ -20,6 +29,13 @@ namespace CargoWiseEAdaptorInterface
 
 		private readonly ILogger<eAdaptorClassicInterface> _logger;
 
+		/// <summary>
+		/// Main constructor
+		/// </summary>
+		/// <param name="url"></param>
+		/// <param name="username"></param>
+		/// <param name="password"></param>
+		/// <param name="logger"></param>
 		public eAdaptorClassicInterface(string url, string username, string password, ILogger<eAdaptorClassicInterface> logger)
 		{
 			InboundURL = url;
@@ -28,6 +44,11 @@ namespace CargoWiseEAdaptorInterface
 			_logger = logger;
 		}
 
+		/// <summary>
+		/// Send a request to the eAdaptor
+		/// </summary>
+		/// <param name="content"></param>
+		/// <returns></returns>
 		public async Task<eAdaptorReponse> SendAsync(XElement content)
 		{
 			var httpsClient = new SerializableHttpsClient();

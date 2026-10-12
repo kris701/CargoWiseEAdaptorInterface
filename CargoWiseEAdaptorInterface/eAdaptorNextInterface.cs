@@ -12,9 +12,18 @@ using System.Xml.Linq;
 
 namespace CargoWiseEAdaptorInterface
 {
+	/// <summary>
+	/// Interface for eAdaptor Next
+	/// </summary>
 	public class eAdaptorNextInterface : IeAdaptorInterface
 	{
+		/// <summary>
+		/// The inbound URL for the CargoWise instance
+		/// </summary>
 		public string InboundURL { get; set; }
+		/// <summary>
+		/// Timeout for requests. Set this to a rather high value, default is 10 minutes.
+		/// </summary>
 		public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
 		private readonly string _oAuthURL;
@@ -27,6 +36,14 @@ namespace CargoWiseEAdaptorInterface
 
 		private readonly ILogger<eAdaptorNextInterface> _logger;
 
+		/// <summary>
+		/// Main constructor
+		/// </summary>
+		/// <param name="url"></param>
+		/// <param name="cwOAuthUrl"></param>
+		/// <param name="cwClientID"></param>
+		/// <param name="certificate"></param>
+		/// <param name="logger"></param>
 		public eAdaptorNextInterface(string url, string cwOAuthUrl, Guid cwClientID, X509Certificate2 certificate, ILogger<eAdaptorNextInterface> logger)
 		{
 			_logger = logger;
@@ -36,6 +53,11 @@ namespace CargoWiseEAdaptorInterface
 			_clientCertificate = certificate;
 		}
 
+		/// <summary>
+		/// Send a request to the eAdaptor
+		/// </summary>
+		/// <param name="content"></param>
+		/// <returns></returns>
 		public async Task<eAdaptorReponse> SendAsync(XElement content)
 		{
 			var httpsClient = new SerializableHttpsClient();
