@@ -6,6 +6,7 @@ namespace CargoWiseEAdaptorInterface
 	public interface IeAdaptorInterface
 	{
 		public string InboundURL { get; set; }
+		public TimeSpan RequestTimeout { get; set; }
 
 		public Task<eAdaptorReponse> SendAsync(XElement content);
 	}

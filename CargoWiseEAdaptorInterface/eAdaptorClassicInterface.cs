@@ -13,6 +13,7 @@ namespace CargoWiseEAdaptorInterface
 	public class eAdaptorClassicInterface : IeAdaptorInterface
 	{
 		public string InboundURL { get; set; }
+		public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
 		private readonly string _username;
 		private readonly string _password;
@@ -37,7 +38,7 @@ namespace CargoWiseEAdaptorInterface
 				_username,
 				_password
 				))))));
-			httpsClient.TimeOut = TimeSpan.FromMinutes(10);
+			httpsClient.TimeOut = RequestTimeout;
 			eAdaptorReponse response = new eAdaptorReponse();
 
 			try

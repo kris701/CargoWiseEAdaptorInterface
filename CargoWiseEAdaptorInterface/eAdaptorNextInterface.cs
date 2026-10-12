@@ -15,6 +15,7 @@ namespace CargoWiseEAdaptorInterface
 	public class eAdaptorNextInterface : IeAdaptorInterface
 	{
 		public string InboundURL { get; set; }
+		public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
 		private readonly string _oAuthURL;
 		private readonly Guid _clientID;
@@ -38,7 +39,7 @@ namespace CargoWiseEAdaptorInterface
 		public async Task<eAdaptorReponse> SendAsync(XElement content)
 		{
 			var httpsClient = new SerializableHttpsClient();
-			httpsClient.TimeOut = TimeSpan.FromMinutes(10);
+			httpsClient.TimeOut = RequestTimeout;
 			if (_oauthToken != null)
 				httpsClient.SetAuthentication(new JWTAuthenticationMethod(_oauthToken));
 
@@ -72,11 +73,15 @@ namespace CargoWiseEAdaptorInterface
 						}
 					}
 					else
-						return await RetryWithNewToken(content, ex.Message, httpsClient);
+					{
+						_logger.LogError("Error during inbound: " + ex.Message + ". Recreating token...");
+						return await RetryWithNewToken(content, httpsClient);
+					}
 				}
 				catch (Exception ex)
 				{
-					return await RetryWithNewToken(content, ex.Message, httpsClient);
+					_logger.LogError("Error during inbound: " + ex.Message + ". Recreating token...");
+					return await RetryWithNewToken(content, httpsClient);
 				}
 			}
 			catch (Exception ex)
@@ -87,9 +92,8 @@ namespace CargoWiseEAdaptorInterface
 			return response;
 		}
 
-		private async Task<eAdaptorReponse> RetryWithNewToken(XElement content, string errorMessage, SerializableHttpsClient httpsClient)
+		private async Task<eAdaptorReponse> RetryWithNewToken(XElement content, SerializableHttpsClient httpsClient)
 		{
-			_logger.LogError("Error during inbound: " + errorMessage + ". Recreating token...");
 			await Task.Delay(1000);
 			await SetAuthToken(httpsClient);
 			var response = new eAdaptorReponse();
