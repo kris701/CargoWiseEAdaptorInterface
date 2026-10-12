@@ -39,18 +39,15 @@ namespace CargoWiseEAdaptorInterface
 		/// <summary>
 		/// Main constructor
 		/// </summary>
-		/// <param name="url"></param>
-		/// <param name="cwOAuthUrl"></param>
-		/// <param name="cwClientID"></param>
-		/// <param name="certificate"></param>
+		/// <param name="config"></param>
 		/// <param name="logger"></param>
-		public eAdaptorNextInterface(string url, string cwOAuthUrl, Guid cwClientID, X509Certificate2 certificate, ILogger<eAdaptorNextInterface> logger)
+		public eAdaptorNextInterface(eAdaptorNextConfig config, ILogger<eAdaptorNextInterface> logger)
 		{
 			_logger = logger;
-			InboundURL = url;
-			_oAuthURL = cwOAuthUrl;
-			_clientID = cwClientID;
-			_clientCertificate = certificate;
+			InboundURL = config.InboundURL;
+			_oAuthURL = config.CWOAuthURL;
+			_clientID = config.CWClientID;
+			_clientCertificate = config.CWCertificate;
 		}
 
 		/// <summary>

@@ -32,15 +32,13 @@ namespace CargoWiseEAdaptorInterface
 		/// <summary>
 		/// Main constructor
 		/// </summary>
-		/// <param name="url"></param>
-		/// <param name="username"></param>
-		/// <param name="password"></param>
+		/// <param name="config"></param>
 		/// <param name="logger"></param>
-		public eAdaptorClassicInterface(string url, string username, string password, ILogger<eAdaptorClassicInterface> logger)
+		public eAdaptorClassicInterface(eAdaptorClassicConfig config, ILogger<eAdaptorClassicInterface> logger)
 		{
-			InboundURL = url;
-			_username = username;
-			_password = password;
+			InboundURL = config.InboundURL;
+			_username = config.Username;
+			_password = config.Password;
 			_logger = logger;
 		}
 
