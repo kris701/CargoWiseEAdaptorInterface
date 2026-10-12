@@ -27,14 +27,14 @@ namespace CargoWiseEAdaptorInterface
 		private readonly string _username;
 		private readonly string _password;
 
-		private readonly ILogger<eAdaptorClassicInterface> _logger;
+		private readonly ILogger<eAdaptorClassicInterface>? _logger;
 
 		/// <summary>
 		/// Main constructor
 		/// </summary>
 		/// <param name="config"></param>
 		/// <param name="logger"></param>
-		public eAdaptorClassicInterface(eAdaptorClassicConfig config, ILogger<eAdaptorClassicInterface> logger)
+		public eAdaptorClassicInterface(eAdaptorClassicConfig config, ILogger<eAdaptorClassicInterface>? logger)
 		{
 			InboundURL = config.InboundURL;
 			_username = config.Username;
@@ -69,7 +69,7 @@ namespace CargoWiseEAdaptorInterface
 			}
 			catch (HttpGeneralException ex2)
 			{
-				_logger.LogError($"Error during inbound: {ex2.Message}. Body: {ex2.Body}.");
+				_logger?.LogError($"Error during inbound: {ex2.Message}. Body: {ex2.Body}.");
 				try
 				{
 					var body = XElement.Parse(ex2.Body);
@@ -79,14 +79,14 @@ namespace CargoWiseEAdaptorInterface
 				}
 				catch (Exception ex3)
 				{
-					_logger.LogError($"Could not reserialize output to XML: {ex3.Message}");
+					_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
 					response.Body = null;
 					response.HasFailed = true;
 				}
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError("Error during inbound: " + ex.Message);
+				_logger?.LogError("Error during inbound: " + ex.Message);
 				response.Body = null;
 				response.HasFailed = true;
 			}

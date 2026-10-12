@@ -34,14 +34,14 @@ namespace CargoWiseEAdaptorInterface
 		private string? _oauthToken = null;
 		private bool _loadingAuth = false;
 
-		private readonly ILogger<eAdaptorNextInterface> _logger;
+		private readonly ILogger<eAdaptorNextInterface>? _logger;
 
 		/// <summary>
 		/// Main constructor
 		/// </summary>
 		/// <param name="config"></param>
 		/// <param name="logger"></param>
-		public eAdaptorNextInterface(eAdaptorNextConfig config, ILogger<eAdaptorNextInterface> logger)
+		public eAdaptorNextInterface(eAdaptorNextConfig config, ILogger<eAdaptorNextInterface>? logger)
 		{
 			_logger = logger;
 			InboundURL = config.InboundURL;
@@ -88,26 +88,26 @@ namespace CargoWiseEAdaptorInterface
 						}
 						catch (Exception ex3)
 						{
-							_logger.LogError($"Could not reserialize output to XML: {ex3.Message}");
+							_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
 							response.Body = null;
 							response.HasFailed = true;
 						}
 					}
 					else
 					{
-						_logger.LogError($"Error during inbound: {ex.Message}. Recreating token...");
+						_logger?.LogError($"Error during inbound: {ex.Message}. Recreating token...");
 						return await RetryWithNewToken(content, httpsClient);
 					}
 				}
 				catch (Exception ex)
 				{
-					_logger.LogError($"Error during inbound: {ex.Message}. Recreating token...");
+					_logger?.LogError($"Error during inbound: {ex.Message}. Recreating token...");
 					return await RetryWithNewToken(content, httpsClient);
 				}
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError($"Unknown error occured: {ex.Message}");
+				_logger?.LogError($"Unknown error occured: {ex.Message}");
 			}
 
 			return response;
@@ -128,7 +128,7 @@ namespace CargoWiseEAdaptorInterface
 			}
 			catch (HttpGeneralException ex2)
 			{
-				_logger.LogError($"Error during inbound: {ex2.Message}. Body: {ex2.Body}.");
+				_logger?.LogError($"Error during inbound: {ex2.Message}. Body: {ex2.Body}.");
 				try
 				{
 					response.HasFailed = true;
@@ -137,14 +137,14 @@ namespace CargoWiseEAdaptorInterface
 				}
 				catch (Exception ex3)
 				{
-					_logger.LogError($"Could not reserialize output to XML: {ex3.Message}");
+					_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
 					response.Body = null;
 					response.HasFailed = true;
 				}
 			}
 			catch (Exception ex2)
 			{
-				_logger.LogError($"Error during inbound: {ex2.Message}. Giving up!");
+				_logger?.LogError($"Error during inbound: {ex2.Message}. Giving up!");
 				response.Body = null;
 				response.HasFailed = true;
 			}
