@@ -17,7 +17,10 @@ namespace CargoWiseEAdaptorInterface.Helpers
 				if (processLogStart == -1 || processLogEnd == -1)
 					return "";
 				var processLog = str.Substring(processLogStart, processLogEnd - processLogStart);
-				return processLog;
+				processLog = processLog.Replace("\r", "");
+				processLog = processLog.Replace("\n", "");
+				processLog = processLog.Replace("\t", "");
+				return processLog.Trim();
 			}
 			catch (Exception)
 			{

@@ -5,8 +5,8 @@ namespace CargoWiseEAdaptorInterface.Models
 	internal class JWTTokenModel
 	{
 		[JsonPropertyName("access_token")]
-		public string AccessToken { get; set; }
+		public string? AccessToken { get; set; }
 		[JsonPropertyName("expires_in")]
-		public int ExpiresInSec { get; set; }
+		public int? ExpiresInSec { get; set; }
 	}
 }

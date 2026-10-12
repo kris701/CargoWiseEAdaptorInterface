@@ -46,4 +46,8 @@
     <PackageReference Include="ToolsSharp" Version="1.2.3" />
   </ItemGroup>
 
+	<ItemGroup>
+		<InternalsVisibleTo Include="CargoWiseEAdaptorInterface.Tests" />
+	</ItemGroup>
+
 </Project>

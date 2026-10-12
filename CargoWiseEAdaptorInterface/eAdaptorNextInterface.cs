@@ -60,8 +60,10 @@ namespace CargoWiseEAdaptorInterface
 		/// <returns></returns>
 		public async Task<eAdaptorReponse> SendAsync(XElement content)
 		{
-			var httpsClient = new SerializableHttpsClient();
-			httpsClient.TimeOut = RequestTimeout;
+			var httpsClient = new SerializableHttpsClient()
+			{
+				TimeOut = RequestTimeout
+			};
 			if (_oauthToken != null)
 				httpsClient.SetAuthentication(new JWTAuthenticationMethod(_oauthToken));
 
@@ -96,19 +98,19 @@ namespace CargoWiseEAdaptorInterface
 					}
 					else
 					{
-						_logger.LogError("Error during inbound: " + ex.Message + ". Recreating token...");
+						_logger.LogError($"Error during inbound: {ex.Message}. Recreating token...");
 						return await RetryWithNewToken(content, httpsClient);
 					}
 				}
 				catch (Exception ex)
 				{
-					_logger.LogError("Error during inbound: " + ex.Message + ". Recreating token...");
+					_logger.LogError($"Error during inbound: {ex.Message}. Recreating token...");
 					return await RetryWithNewToken(content, httpsClient);
 				}
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError("Unknown error occured: " + ex.Message);
+				_logger.LogError($"Unknown error occured: {ex.Message}");
 			}
 
 			return response;
@@ -145,7 +147,7 @@ namespace CargoWiseEAdaptorInterface
 			}
 			catch (Exception ex2)
 			{
-				_logger.LogError("Error during inbound: " + ex2.Message + ". Giving up!");
+				_logger.LogError($"Error during inbound: {ex2.Message}. Giving up!");
 				response.Body = null;
 				response.HasFailed = true;
 			}
@@ -165,23 +167,25 @@ namespace CargoWiseEAdaptorInterface
 
 			var assertion = GetSignedClientAssertion();
 
-			var nvc = new List<KeyValuePair<string, string>>();
-			nvc.Add(new KeyValuePair<string, string>("scope", $"{_clientID}/.default"));
-			nvc.Add(new KeyValuePair<string, string>("client_id", $"{_clientID}"));
-			nvc.Add(new KeyValuePair<string, string>("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"));
-			nvc.Add(new KeyValuePair<string, string>("client_assertion", assertion));
-			nvc.Add(new KeyValuePair<string, string>("grant_type", "client_credentials"));
+			var nvc = new List<KeyValuePair<string, string>>
+			{
+				new("scope", $"{_clientID}/.default"),
+				new("client_id", $"{_clientID}"),
+				new("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
+				new("client_assertion", assertion),
+				new("grant_type", "client_credentials")
+			};
 			using var client = new HttpClient();
 			using var req = new HttpRequestMessage(HttpMethod.Post, _oAuthURL) { Content = new FormUrlEncodedContent(nvc) };
 			using var res = await client.SendAsync(req);
 			if (res == null)
-				throw new ArgumentNullException("Auth response was null!");
+				throw new ArgumentNullException("res", "Auth response was null!");
 			var content = await res.Content.ReadAsStringAsync();
 			var token = JsonSerializer.Deserialize<JWTTokenModel>(content);
 
-			if (token == null)
-				throw new ArgumentNullException("Auth token was null!");
-			_expiresTime = DateTime.UtcNow.AddSeconds(token.ExpiresInSec - 60);
+			if (token == null || token.AccessToken == null || token.ExpiresInSec == null)
+				throw new ArgumentNullException("token", "Auth token was null!");
+			_expiresTime = DateTime.UtcNow.AddSeconds((int)token.ExpiresInSec - 60);
 			_oauthToken = token.AccessToken;
 			httpsClient.SetAuthentication(new JWTAuthenticationMethod(_oauthToken));
 
