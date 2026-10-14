@@ -30,7 +30,7 @@ namespace CargoWiseEAdaptorInterface
 		private readonly Guid _clientID;
 		private readonly X509Certificate2 _clientCertificate;
 
-		private DateTime _expiresTime = DateTime.UtcNow;
+		private DateTime _expiresTime = DateTime.MaxValue;
 		private string? _oauthToken = null;
 		private SemaphoreSlim _mut = new SemaphoreSlim(1);
 
@@ -61,14 +61,12 @@ namespace CargoWiseEAdaptorInterface
 			{
 				TimeOut = RequestTimeout
 			};
-			if (_oauthToken != null)
-				httpsClient.SetAuthentication(new JWTAuthenticationMethod(_oauthToken));
 
 			eAdaptorReponse response = new eAdaptorReponse();
 			try
 			{
-				if (_oauthToken == null || _expiresTime <= DateTime.UtcNow)
-					httpsClient.SetAuthentication(new JWTAuthenticationMethod(await SetAuthToken()));
+				httpsClient.SetAuthentication(new JWTAuthenticationMethod(await GetAuthToken()));
+
 				try
 				{
 					var body = await httpsClient.PostAsync<XElement, XElement>(content, InboundURL);
@@ -116,11 +114,12 @@ namespace CargoWiseEAdaptorInterface
 		private async Task<eAdaptorReponse> RetryWithNewToken(XElement content, SerializableHttpsClient httpsClient)
 		{
 			await Task.Delay(1000);
-			httpsClient.SetAuthentication(new JWTAuthenticationMethod(await SetAuthToken()));
 			var response = new eAdaptorReponse();
 
 			try
 			{
+				httpsClient.SetAuthentication(new JWTAuthenticationMethod(await GetAuthToken(true)));
+
 				var body = await httpsClient.PostAsync<XElement, XElement>(content, InboundURL);
 				response.Body = body;
 				response.HasFailed = false;
@@ -151,14 +150,16 @@ namespace CargoWiseEAdaptorInterface
 			return response;
 		}
 
-		private async Task<string> SetAuthToken()
+		private async Task<string> GetAuthToken(bool force = false)
 		{
 			await _mut.WaitAsync();
-			if (_oauthToken != null)
+			if (!force && _oauthToken != null && _expiresTime <= DateTime.UtcNow)
 			{
 				_mut.Release();
 				return _oauthToken;
 			}
+
+			_expiresTime = DateTime.MaxValue;
 			_oauthToken = null;
 
 			var assertion = GetSignedClientAssertion();
@@ -181,6 +182,7 @@ namespace CargoWiseEAdaptorInterface
 
 			if (token == null || token.AccessToken == null || token.ExpiresInSec == null)
 				throw new ArgumentNullException("token", "Auth token was null!");
+
 			_expiresTime = DateTime.UtcNow.AddSeconds((int)token.ExpiresInSec - 60);
 			_oauthToken = token.AccessToken;
 
