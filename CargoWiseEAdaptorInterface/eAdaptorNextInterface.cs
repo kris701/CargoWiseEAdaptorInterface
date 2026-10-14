@@ -159,35 +159,44 @@ namespace CargoWiseEAdaptorInterface
 				return _oauthToken;
 			}
 
-			_expiresTime = DateTime.MaxValue;
-			_oauthToken = null;
-
-			var assertion = GetSignedClientAssertion();
-
-			var nvc = new List<KeyValuePair<string, string>>
+			try
 			{
-				new("scope", $"{_clientID}/.default"),
-				new("client_id", $"{_clientID}"),
-				new("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
-				new("client_assertion", assertion),
-				new("grant_type", "client_credentials")
-			};
-			using var client = new HttpClient();
-			using var req = new HttpRequestMessage(HttpMethod.Post, _oAuthURL) { Content = new FormUrlEncodedContent(nvc) };
-			using var res = await client.SendAsync(req);
-			if (res == null)
-				throw new ArgumentNullException("res", "Auth response was null!");
-			var content = await res.Content.ReadAsStringAsync();
-			var token = JsonSerializer.Deserialize<JWTTokenModel>(content);
+				_expiresTime = DateTime.MaxValue;
+				_oauthToken = null;
 
-			if (token == null || token.AccessToken == null || token.ExpiresInSec == null)
-				throw new ArgumentNullException("token", "Auth token was null!");
+				var assertion = GetSignedClientAssertion();
 
-			_expiresTime = DateTime.UtcNow.AddSeconds((int)token.ExpiresInSec - 60);
-			_oauthToken = token.AccessToken;
+				var nvc = new List<KeyValuePair<string, string>>
+				{
+					new("scope", $"{_clientID}/.default"),
+					new("client_id", $"{_clientID}"),
+					new("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
+					new("client_assertion", assertion),
+					new("grant_type", "client_credentials")
+				};
+				using var client = new HttpClient();
+				using var req = new HttpRequestMessage(HttpMethod.Post, _oAuthURL) { Content = new FormUrlEncodedContent(nvc) };
+				using var res = await client.SendAsync(req);
+				if (res == null)
+					throw new ArgumentNullException("res", "Auth response was null!");
+				var content = await res.Content.ReadAsStringAsync();
+				var token = JsonSerializer.Deserialize<JWTTokenModel>(content);
 
-			_mut.Release();
-			return _oauthToken;
+				if (token == null || token.AccessToken == null || token.ExpiresInSec == null)
+					throw new ArgumentNullException("token", "Auth token was null!");
+
+				_expiresTime = DateTime.UtcNow.AddSeconds((int)token.ExpiresInSec - 60);
+				_oauthToken = token.AccessToken;
+
+				_mut.Release();
+				return _oauthToken;
+			}
+			catch(Exception ex)
+			{
+				_logger?.LogError($"Error during auth: {ex.Message}");
+				_mut.Release();
+				throw new Exception($"Error during auth: {ex.Message}");
+			}
 		}
 
 		private string GetSignedClientAssertion()
