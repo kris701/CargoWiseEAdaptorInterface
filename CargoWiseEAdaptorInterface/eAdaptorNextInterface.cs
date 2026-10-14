@@ -32,7 +32,7 @@ namespace CargoWiseEAdaptorInterface
 
 		private DateTime _expiresTime = DateTime.UtcNow;
 		private string? _oauthToken = null;
-		private bool _loadingAuth = false;
+		private SemaphoreSlim _mut = new SemaphoreSlim(1);
 
 		private readonly ILogger<eAdaptorNextInterface>? _logger;
 
@@ -68,7 +68,7 @@ namespace CargoWiseEAdaptorInterface
 			try
 			{
 				if (_oauthToken == null || _expiresTime <= DateTime.UtcNow)
-					await SetAuthToken(httpsClient);
+					httpsClient.SetAuthentication(new JWTAuthenticationMethod(await SetAuthToken()));
 				try
 				{
 					var body = await httpsClient.PostAsync<XElement, XElement>(content, InboundURL);
@@ -116,7 +116,7 @@ namespace CargoWiseEAdaptorInterface
 		private async Task<eAdaptorReponse> RetryWithNewToken(XElement content, SerializableHttpsClient httpsClient)
 		{
 			await Task.Delay(1000);
-			await SetAuthToken(httpsClient);
+			httpsClient.SetAuthentication(new JWTAuthenticationMethod(await SetAuthToken()));
 			var response = new eAdaptorReponse();
 
 			try
@@ -151,16 +151,15 @@ namespace CargoWiseEAdaptorInterface
 			return response;
 		}
 
-		private async Task SetAuthToken(SerializableHttpsClient httpsClient)
+		private async Task<string> SetAuthToken()
 		{
-			if (_loadingAuth)
+			await _mut.WaitAsync();
+			if (_oauthToken != null)
 			{
-				while (_loadingAuth)
-					await Task.Delay(100);
-				if (_oauthToken != null)
-					httpsClient.SetAuthentication(new JWTAuthenticationMethod(_oauthToken));
+				_mut.Release();
+				return _oauthToken;
 			}
-			_loadingAuth = true;
+			_oauthToken = null;
 
 			var assertion = GetSignedClientAssertion();
 
@@ -184,9 +183,9 @@ namespace CargoWiseEAdaptorInterface
 				throw new ArgumentNullException("token", "Auth token was null!");
 			_expiresTime = DateTime.UtcNow.AddSeconds((int)token.ExpiresInSec - 60);
 			_oauthToken = token.AccessToken;
-			httpsClient.SetAuthentication(new JWTAuthenticationMethod(_oauthToken));
 
-			_loadingAuth = false;
+			_mut.Release();
+			return _oauthToken;
 		}
 
 		private string GetSignedClientAssertion()
