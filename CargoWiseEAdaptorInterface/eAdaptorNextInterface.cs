@@ -59,7 +59,10 @@ namespace CargoWiseEAdaptorInterface
 		public async Task<eAdaptorReponse> SendAsync(XElement content)
 		{
 			if (_serviceUnavailable)
+			{
 				await Task.Delay(TimeSpan.FromMinutes(1));
+				_serviceUnavailable = false;
+			}
 
 			var httpsClient = new SerializableHttpsClient()
 			{
