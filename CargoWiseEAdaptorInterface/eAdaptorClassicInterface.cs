@@ -26,6 +26,7 @@ namespace CargoWiseEAdaptorInterface
 
 		private readonly string _username;
 		private readonly string _password;
+		private bool _serviceUnavailable = false;
 
 		private readonly ILogger<eAdaptorClassicInterface>? _logger;
 
@@ -49,6 +50,9 @@ namespace CargoWiseEAdaptorInterface
 		/// <returns></returns>
 		public async Task<eAdaptorReponse> SendAsync(XElement content)
 		{
+			if (_serviceUnavailable)
+				await Task.Delay(TimeSpan.FromMinutes(1));
+
 			var httpsClient = new SerializableHttpsClient();
 			httpsClient.SetAuthentication(new ManualAuthenticationMethod(
 				new AuthenticationHeaderValue(
@@ -69,19 +73,29 @@ namespace CargoWiseEAdaptorInterface
 			}
 			catch (HttpGeneralException ex2)
 			{
-				_logger?.LogError($"Error during inbound: {ex2.Message}. Body: {ex2.Body}.");
-				try
+				if (ex2.ErrorCode == System.Net.HttpStatusCode.ServiceUnavailable)
 				{
-					var body = XElement.Parse(ex2.Body);
-					response.Body = body;
-					response.HasFailed = true;
-					response.Log = ProcessLogHelpers.TryParseProcessLog(body);
-				}
-				catch (Exception ex3)
-				{
-					_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
+					_serviceUnavailable = true;
+					_logger?.LogError($"Cargowise API is unavailable! Stopping all inbound for 1 minute.");
 					response.Body = null;
 					response.HasFailed = true;
+				}
+				else
+				{
+					try
+					{
+						var body = XElement.Parse(ex2.Body);
+						response.Body = body;
+						response.HasFailed = true;
+						response.Log = ProcessLogHelpers.TryParseProcessLog(body);
+					}
+					catch (Exception ex3)
+					{
+						_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
+						response.Body = null;
+						response.HasFailed = true;
+						response.Log = ex3.Message;
+					}
 				}
 			}
 			catch (Exception ex)
@@ -89,6 +103,7 @@ namespace CargoWiseEAdaptorInterface
 				_logger?.LogError("Error during inbound: " + ex.Message);
 				response.Body = null;
 				response.HasFailed = true;
+				response.Log = ex.Message;
 			}
 
 			return response;

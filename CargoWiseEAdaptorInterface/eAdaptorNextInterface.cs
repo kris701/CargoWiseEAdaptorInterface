@@ -33,6 +33,7 @@ namespace CargoWiseEAdaptorInterface
 		private DateTime _expiresTime = DateTime.MaxValue;
 		private string? _oauthToken = null;
 		private SemaphoreSlim _mut = new SemaphoreSlim(1);
+		private bool _serviceUnavailable = false;
 
 		private readonly ILogger<eAdaptorNextInterface>? _logger;
 
@@ -57,6 +58,9 @@ namespace CargoWiseEAdaptorInterface
 		/// <returns></returns>
 		public async Task<eAdaptorReponse> SendAsync(XElement content)
 		{
+			if (_serviceUnavailable)
+				await Task.Delay(TimeSpan.FromMinutes(1));
+
 			var httpsClient = new SerializableHttpsClient()
 			{
 				TimeOut = RequestTimeout
@@ -76,31 +80,41 @@ namespace CargoWiseEAdaptorInterface
 				}
 				catch (HttpGeneralException ex)
 				{
-					if (ex.Body.Contains(">ERR<"))
+					if (ex.ErrorCode == System.Net.HttpStatusCode.ServiceUnavailable)
 					{
-						try
-						{
-							response.HasFailed = true;
-							response.Body = XElement.Parse(ex.Body);
-							response.Log = ProcessLogHelpers.TryParseProcessLog(response.Body);
-						}
-						catch (Exception ex3)
-						{
-							_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
-							response.Body = null;
-							response.HasFailed = true;
-						}
+						_serviceUnavailable = true;
+						_logger?.LogError($"Cargowise API is unavailable! Stopping all inbound for 1 minute.");
+						return await RetryWithNewToken(content);
 					}
 					else
 					{
-						_logger?.LogError($"Error during inbound: {ex.Message}. Recreating token...");
-						return await RetryWithNewToken(content, httpsClient);
+						if (ex.Body.Contains(">ERR<"))
+						{
+							try
+							{
+								response.HasFailed = true;
+								response.Body = XElement.Parse(ex.Body);
+								response.Log = ProcessLogHelpers.TryParseProcessLog(response.Body);
+							}
+							catch (Exception ex3)
+							{
+								_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
+								response.Body = null;
+								response.HasFailed = true;
+								response.Log = ex3.Message;
+							}
+						}
+						else
+						{
+							_logger?.LogError($"Error during inbound: {ex.Message}. Recreating token...");
+							return await RetryWithNewToken(content);
+						}
 					}
 				}
 				catch (Exception ex)
 				{
 					_logger?.LogError($"Error during inbound: {ex.Message}. Recreating token...");
-					return await RetryWithNewToken(content, httpsClient);
+					return await RetryWithNewToken(content);
 				}
 			}
 			catch (Exception ex)
@@ -111,9 +125,16 @@ namespace CargoWiseEAdaptorInterface
 			return response;
 		}
 
-		private async Task<eAdaptorReponse> RetryWithNewToken(XElement content, SerializableHttpsClient httpsClient)
+		private async Task<eAdaptorReponse> RetryWithNewToken(XElement content)
 		{
+			if (_serviceUnavailable)
+				await Task.Delay(TimeSpan.FromMinutes(1));
+
 			await Task.Delay(1000);
+			var httpsClient = new SerializableHttpsClient()
+			{
+				TimeOut = RequestTimeout
+			};
 			var response = new eAdaptorReponse();
 
 			try
@@ -139,6 +160,7 @@ namespace CargoWiseEAdaptorInterface
 					_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
 					response.Body = null;
 					response.HasFailed = true;
+					response.Log = ex3.Message;
 				}
 			}
 			catch (Exception ex2)
@@ -146,6 +168,7 @@ namespace CargoWiseEAdaptorInterface
 				_logger?.LogError($"Error during inbound: {ex2.Message}. Giving up!");
 				response.Body = null;
 				response.HasFailed = true;
+				response.Log = ex2.Message;
 			}
 			return response;
 		}
