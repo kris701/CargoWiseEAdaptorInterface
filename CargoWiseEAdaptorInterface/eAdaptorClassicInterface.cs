@@ -23,6 +23,11 @@ namespace CargoWiseEAdaptorInterface
 		/// Timeout for requests. Set this to a rather high value, default is 10 minutes.
 		/// </summary>
 		public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
+		/// <summary>
+		/// Event that fires if the connection to the eAdaptor did not respond with a valid answer.
+		/// This only fires for technical issues, not if the eAdaptor itself returns a "ERR" XML file back.
+		/// </summary>
+		public event eAdaptorInterfaceHandler? OnConnectionFailure;
 
 		private readonly string _username;
 		private readonly string _password;
@@ -94,7 +99,7 @@ namespace CargoWiseEAdaptorInterface
 					}
 					catch (Exception ex3)
 					{
-						_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
+						_logger?.LogError($"Could not deserialize output to XML: {ex3.Message}");
 						response.Body = null;
 						response.HasFailed = true;
 						response.Log = ex3.Message;
@@ -107,6 +112,8 @@ namespace CargoWiseEAdaptorInterface
 				response.Body = null;
 				response.HasFailed = true;
 				response.Log = ex.Message;
+
+				OnConnectionFailure?.Invoke();
 			}
 
 			return response;

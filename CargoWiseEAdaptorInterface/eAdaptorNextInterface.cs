@@ -13,11 +13,6 @@ using System.Xml.Linq;
 namespace CargoWiseEAdaptorInterface
 {
 	/// <summary>
-	/// Simple event handler
-	/// </summary>
-	public delegate void eAdaptorInterfaceHandler();
-
-	/// <summary>
 	/// Interface for eAdaptor Next
 	/// </summary>
 	public class eAdaptorNextInterface : IeAdaptorInterface
@@ -30,12 +25,21 @@ namespace CargoWiseEAdaptorInterface
 		/// Timeout for requests. Set this to a rather high value, default is 10 minutes.
 		/// </summary>
 		public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
-
 		/// <summary>
-		/// Events that fires during auth if the certificate in use is soon to be expired.
+		/// Event that fires if the connection to the eAdaptor did not respond with a valid answer.
+		/// This only fires for technical issues, not if the eAdaptor itself returns a "ERR" XML file back.
+		/// </summary>
+		public event eAdaptorInterfaceHandler? OnConnectionFailure;
+		/// <summary>
+		/// Event that fires during auth if the certificate in use is soon to be expired.
 		/// This will only fire once per restart
 		/// </summary>
 		public event eAdaptorInterfaceHandler? OnCertificateSoonExpires;
+		/// <summary>
+		/// Event that fires if the authentication with CargoWises OAuth fails
+		/// </summary>
+		public event eAdaptorInterfaceHandler? OnAuthFailure;
+
 		private bool _hasFiredOnCertificateSoonExpires = false;
 
 		private readonly string _oAuthURL;
@@ -44,7 +48,7 @@ namespace CargoWiseEAdaptorInterface
 
 		private DateTime _expiresTime = DateTime.MaxValue;
 		private string? _oauthToken = null;
-		private SemaphoreSlim _mut = new SemaphoreSlim(1);
+		private readonly SemaphoreSlim _mut = new SemaphoreSlim(1);
 		private bool _serviceUnavailable = false;
 
 		private readonly ILogger<eAdaptorNextInterface>? _logger;
@@ -113,7 +117,7 @@ namespace CargoWiseEAdaptorInterface
 							}
 							catch (Exception ex3)
 							{
-								_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
+								_logger?.LogError($"Could not deserialize output to XML: {ex3.Message}");
 								response.Body = null;
 								response.HasFailed = true;
 								response.Log = ex3.Message;
@@ -135,6 +139,7 @@ namespace CargoWiseEAdaptorInterface
 			catch (Exception ex)
 			{
 				_logger?.LogError($"Unknown error occured: {ex.Message}");
+				OnConnectionFailure?.Invoke();
 			}
 
 			return response;
@@ -172,10 +177,11 @@ namespace CargoWiseEAdaptorInterface
 				}
 				catch (Exception ex3)
 				{
-					_logger?.LogError($"Could not reserialize output to XML: {ex3.Message}");
+					_logger?.LogError($"Could not deserialize output to XML: {ex3.Message}");
 					response.Body = null;
 					response.HasFailed = true;
 					response.Log = ex3.Message;
+					OnConnectionFailure?.Invoke();
 				}
 			}
 			catch (Exception ex2)
@@ -184,6 +190,7 @@ namespace CargoWiseEAdaptorInterface
 				response.Body = null;
 				response.HasFailed = true;
 				response.Log = ex2.Message;
+				OnConnectionFailure?.Invoke();
 			}
 			return response;
 		}
@@ -238,10 +245,11 @@ namespace CargoWiseEAdaptorInterface
 				_mut.Release();
 				return _oauthToken;
 			}
-			catch(Exception ex)
+			catch (Exception ex)
 			{
 				_logger?.LogError($"Error during auth: {ex.Message}");
 				_mut.Release();
+				OnAuthFailure?.Invoke();
 				throw new Exception($"Error during auth: {ex.Message}");
 			}
 		}
