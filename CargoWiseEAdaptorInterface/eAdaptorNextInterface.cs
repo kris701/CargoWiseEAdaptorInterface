@@ -13,6 +13,11 @@ using System.Xml.Linq;
 namespace CargoWiseEAdaptorInterface
 {
 	/// <summary>
+	/// Simple event handler
+	/// </summary>
+	public delegate void eAdaptorInterfaceHandler();
+
+	/// <summary>
 	/// Interface for eAdaptor Next
 	/// </summary>
 	public class eAdaptorNextInterface : IeAdaptorInterface
@@ -25,6 +30,13 @@ namespace CargoWiseEAdaptorInterface
 		/// Timeout for requests. Set this to a rather high value, default is 10 minutes.
 		/// </summary>
 		public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromMinutes(10);
+
+		/// <summary>
+		/// Events that fires during auth if the certificate in use is soon to be expired.
+		/// This will only fire once per restart
+		/// </summary>
+		public event eAdaptorInterfaceHandler? OnCertificateSoonExpires;
+		private bool _hasFiredOnCertificateSoonExpires = false;
 
 		private readonly string _oAuthURL;
 		private readonly Guid _clientID;
@@ -189,6 +201,15 @@ namespace CargoWiseEAdaptorInterface
 			{
 				_expiresTime = DateTime.MaxValue;
 				_oauthToken = null;
+
+				if (_clientCertificate.NotAfter < DateTime.UtcNow.AddDays(30))
+				{
+					if (!_hasFiredOnCertificateSoonExpires)
+					{
+						_hasFiredOnCertificateSoonExpires = true;
+						OnCertificateSoonExpires?.Invoke();
+					}
+				}
 
 				var assertion = GetSignedClientAssertion();
 
