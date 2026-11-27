@@ -1,5 +1,4 @@
 ﻿using System.Xml.Linq;
-using ToolsSharp;
 
 namespace CargoWiseEAdaptorInterface.Helpers
 {
@@ -11,7 +10,7 @@ namespace CargoWiseEAdaptorInterface.Helpers
 				return "";
 			try
 			{
-				var str = XMLHelpers.ConvertXElementToString(body);
+				var str = body.ToString();
 				var processLogStart = str.LastIndexOf("<ProcessingLog>") + "<ProcessingLog>".Length;
 				var processLogEnd = str.LastIndexOf("</ProcessingLog>");
 				if (processLogStart == -1 || processLogEnd == -1)
